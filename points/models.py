@@ -1,11 +1,15 @@
-from django.db import models
+from django.contrib.gis.db import models
 
 class Point(models.Model):
-    lat = models.DecimalField(decimal_places=2)
-    lon = models.DecimalField(decimal_places=2)
+    location = models.PointField(
+        verbose_name="Местоположение",
+        help_text="Географические координаты точки (широта, долгота)",
+        srid=4326,  # WGS84 стандарт
+        spatial_index=True,
+    )
 
     def __str__(self):
-        return f'{self.lat} {self.lon}'
+        return f'{self.location.x:2f} {self.location.y:2f}'
     
 
 class Message(models.Model):
@@ -27,22 +31,12 @@ class Message(models.Model):
         verbose_name="Содержание сообщения",
         help_text="Текст сообщения"
     )
-    
-    author = models.CharField(
-        max_length=100,
-        verbose_name="Автор",
-        default="Аноним",
-        help_text="Имя или псевдоним автора"
-    )
-    
-    email = models.EmailField(
-        verbose_name="Email автора",
+
+    location = models.PointField(
+        verbose_name="Местоположение сообщения",
+        help_text="Где было оставлено сообщение",
+        srid=4326,
         blank=True,
         null=True,
-        help_text="Email для обратной связи (необязательно)"
-    )
-    
-    created_at = models.DateTimeField(
-        verbose_name="Дата создания",
-        auto_now_add=True
+        spatial_index=True,
     )

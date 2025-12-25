@@ -1,6 +1,9 @@
 django
 pyyaml
 djangorestframework
+django-filter
+psycopg2-binary
 djangorestframework-simplejwt
 requests
 django-cors-headers
+python-dotenv
