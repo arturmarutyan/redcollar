@@ -52,9 +52,8 @@ class PointSerializer(serializers.ModelSerializer):
 
 
 class MessageSerializer(serializers.ModelSerializer):
-    point_id = serializers.PrimaryKeyRelatedField(
+    point = serializers.PrimaryKeyRelatedField(
         queryset=Point.objects.all(),
-        source='point',
         write_only=True,
         help_text="ID точки, к которой относится сообщение"
     )
@@ -75,6 +74,7 @@ class MessageSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Message
+        fields = '__all__'
     
     def create(self, validated_data):
         # Обрабатываем координаты сообщения, если они предоставлены

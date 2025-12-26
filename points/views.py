@@ -1,104 +1,52 @@
-
+# points/views.py
 from django.contrib.gis.geos import Point as GeoPoint
 from django.contrib.gis.measure import D
 from django.contrib.gis.db.models.functions import Distance
-from rest_framework import viewsets, generics, status
+from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.decorators import action
+from rest_framework import status
+from rest_framework.permissions import AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
-import math
 
-from .models import Point, Message
+from .models import Point as LocationPoint, Message
 from .serializers import (
     PointSerializer, MessageSerializer, SearchSerializer
 )
-from .filters import MessageFilter
 
 
-class PointViewSet(viewsets.ModelViewSet):
+# ============ POINTS API ============
+
+class PointListCreateAPIView(APIView):
     """
-    API для работы с точками
+    GET: Получить список всех точек
+    POST: Создать новую точку
     """
-    queryset = Point.objects.all()
-    serializer_class = PointSerializer
+    permission_classes = [AllowAny]
     
-    @action(detail=False, methods=['get'], url_path='search')
-    def search_in_radius(self, request):
-        """
-        Поиск точек в заданном радиусе
-        GET /api/points/search/?latitude=55.75&longitude=37.61&radius=10
-        """
-        serializer = SearchSerializer(data=request.query_params)
-        if not serializer.is_valid():
-            return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        data = serializer.validated_data
-        latitude = data['latitude']
-        longitude = data['longitude']
-        radius_km = data['radius']
-        
-        center_point = GeoPoint(longitude, latitude, srid=4326)
-        
-        # Ищем точки в радиусе
-        queryset = Point.objects.filter(
-            location__distance_lte=(center_point, D(km=radius_km)),
-        ).annotate(
-            distance=Distance('location', center_point)
-        ).order_by('distance')
-        
-        # Сериализуем результат
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = PointSerializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        
-        serializer = PointSerializer(queryset, many=True)
+    def get(self, request):
+        """Получить список всех активных точек"""
+        points = LocationPoint.objects.all()
+        serializer = PointSerializer(points, many=True)
         return Response(serializer.data)
     
-    # @action(detail=True, methods=['get'], url_path='messages')
-    # def point_messages(self, request, pk=None):
-    #     """
-    #     Получение сообщений для конкретной точки
-    #     GET /api/points/{id}/messages/
-    #     """
-    #     point = self.get_object()
-    #     messages = point.messages.filter()
-        
-    #     page = self.paginate_queryset(messages)
-    #     if page is not None:
-    #         serializer = MessageSerializer(page, many=True)
-    #         return self.get_paginated_response(serializer.data)
-        
-    #     serializer = MessageSerializer(messages, many=True)
-    #     return Response(serializer.data)
+    def post(self, request):
+        """Создать новую точку"""
+        serializer = PointSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class MessageViewSet(viewsets.ModelViewSet):
+class PointSearchAPIView(APIView):
     """
-    API для работы с сообщениями
+    Поиск точек в заданном радиусе
+    GET /api/points/search/?latitude=55.7558&longitude=37.6173&radius=10
     """
-    queryset = Message.objects.all()
-    serializer_class = MessageSerializer
-    filter_backends = [DjangoFilterBackend]
-    filterset_class = MessageFilter
+    permission_classes = [AllowAny]
     
-    def perform_create(self, serializer):
-        # Автоматически устанавливаем местоположение из точки, если не указано
-        point = serializer.validated_data['point']
-        if not serializer.validated_data.get('location') and point:
-            serializer.validated_data['location'] = point.location
-        serializer.save()
-    
-    @action(detail=False, methods=['get'], url_path='search')
-    def search_messages(self, request):
-        """
-        Поиск сообщений в заданном радиусе
-        GET /api/points/messages/search/?latitude=55.7558&longitude=37.6173&radius=10
-        """
+    def get(self, request):
         serializer = SearchSerializer(data=request.query_params)
         if not serializer.is_valid():
             return Response(
@@ -114,19 +62,126 @@ class MessageViewSet(viewsets.ModelViewSet):
         # Создаем точку центра
         center_point = GeoPoint(longitude, latitude, srid=4326)
         
-        # Ищем сообщения в радиусе (по местоположению сообщения)
-        queryset = Message.objects.filter(
-            Q(location__distance_lte=(center_point, D(km=radius_km))) |
-            Q(point__location__distance_lte=(center_point, D(km=radius_km))),
+        # Ищем точки в радиусе
+        points = LocationPoint.objects.filter(
+            location__distance_lte=(center_point, D(km=radius_km))
         ).annotate(
             distance=Distance('location', center_point)
         ).order_by('distance')
         
-        # Сериализуем результат
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = MessageSerializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+        serializer = PointSerializer(points, many=True)
+        return Response(serializer.data)
+
+# ============ MESSAGES API ============
+
+class MessageListCreateAPIView(APIView):
+    """
+    GET: Получить список всех сообщений
+    POST: Создать новое сообщение
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        """Получить список всех одобренных сообщений"""
+        messages = Message.objects.all()
+        serializer = MessageSerializer(messages, many=True)
+        return Response(serializer.data)
+    
+    def post(self, request):
+        """Создать новое сообщение"""
+        print("DEBUG: Получен запрос на создание сообщения")
+        print(f"DEBUG: Данные: {request.data}")
         
-        serializer = MessageSerializer(queryset, many=True)
+        serializer = MessageSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            print("DEBUG: Сериализатор валиден")
+            message = serializer.save()
+            print(f"DEBUG: Сообщение создано с ID: {message.id}")
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        print(f"DEBUG: Ошибки сериализатора: {serializer.errors}")
+        return Response(
+            {
+                'error': 'Неверные данные',
+                'details': serializer.errors,
+                'received_data': request.data
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+class MessageDetailAPIView(APIView):
+    """
+    GET: Получить детали сообщения
+    PUT: Обновить сообщение полностью
+    PATCH: Частично обновить сообщение
+    DELETE: Удалить сообщение
+    """
+    permission_classes = [AllowAny]
+    
+    def get_object(self, pk):
+        try:
+            return Message.objects.get(pk=pk)
+        except Message.DoesNotExist:
+            return None
+    
+    def get(self, request, pk):
+        """Получить детали сообщения"""
+        message = self.get_object(pk)
+        if message is None:
+            return Response(
+                {'error': 'Сообщение не найдено или не одобрено'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        serializer = MessageSerializer(message)
+        return Response(serializer.data)
+    
+    def put(self, request, pk):
+        """Полное обновление сообщения"""
+        message = self.get_object(pk)
+        if message is None:
+            return Response(
+                {'error': 'Сообщение не найдено или не одобрено'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        serializer = MessageSerializer(message, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class MessageSearchAPIView(APIView):
+    """
+    Поиск сообщений в заданном радиусе
+    GET /api/messages/search/?latitude=55.7558&longitude=37.6173&radius=10
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        serializer = SearchSerializer(data=request.query_params)
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        data = serializer.validated_data
+        latitude = data['latitude']
+        longitude = data['longitude']
+        radius_km = data['radius']
+        
+        # Создаем точку центра
+        center_point = GeoPoint(longitude, latitude, srid=4326)
+        
+        # Ищем сообщения в радиусе
+        messages = Message.objects.filter(
+            Q(location__distance_lte=(center_point, D(km=radius_km))) |
+            Q(point__location__distance_lte=(center_point, D(km=radius_km)))
+        ).annotate(
+            distance=Distance('location', center_point)
+        ).order_by('distance')
+        
+        serializer = MessageSerializer(messages, many=True)
         return Response(serializer.data)
