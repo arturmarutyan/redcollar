@@ -1,11 +1,10 @@
-# points/views.py
 from django.contrib.gis.geos import Point as GeoPoint
 from django.contrib.gis.measure import D
 from django.contrib.gis.db.models.functions import Distance
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
 
@@ -15,14 +14,16 @@ from .serializers import (
 )
 
 
+class AuthenticatedAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
 # ============ POINTS API ============
 
-class PointListCreateAPIView(APIView):
+class PointListCreateAPIView(AuthenticatedAPIView):
     """
     GET: Получить список всех точек
     POST: Создать новую точку
     """
-    permission_classes = [AllowAny]
     
     def get(self, request):
         """Получить список всех активных точек"""
@@ -39,12 +40,11 @@ class PointListCreateAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class PointSearchAPIView(APIView):
+class PointSearchAPIView(AuthenticatedAPIView):
     """
     Поиск точек в заданном радиусе
     GET /api/points/search/?latitude=55.7558&longitude=37.6173&radius=10
     """
-    permission_classes = [AllowAny]
     
     def get(self, request):
         serializer = SearchSerializer(data=request.query_params)
@@ -74,12 +74,11 @@ class PointSearchAPIView(APIView):
 
 # ============ MESSAGES API ============
 
-class MessageListCreateAPIView(APIView):
+class MessageListCreateAPIView(AuthenticatedAPIView):
     """
     GET: Получить список всех сообщений
     POST: Создать новое сообщение
     """
-    permission_classes = [AllowAny]
     
     def get(self, request):
         """Получить список всех одобренных сообщений"""
@@ -111,14 +110,13 @@ class MessageListCreateAPIView(APIView):
         )
 
 
-class MessageDetailAPIView(APIView):
+class MessageDetailAPIView(AuthenticatedAPIView):
     """
     GET: Получить детали сообщения
     PUT: Обновить сообщение полностью
     PATCH: Частично обновить сообщение
     DELETE: Удалить сообщение
     """
-    permission_classes = [AllowAny]
     
     def get_object(self, pk):
         try:
@@ -152,12 +150,11 @@ class MessageDetailAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class MessageSearchAPIView(APIView):
+class MessageSearchAPIView(AuthenticatedAPIView):
     """
     Поиск сообщений в заданном радиусе
     GET /api/messages/search/?latitude=55.7558&longitude=37.6173&radius=10
     """
-    permission_classes = [AllowAny]
     
     def get(self, request):
         serializer = SearchSerializer(data=request.query_params)

@@ -25,8 +25,7 @@ urlpatterns = [
     # Список всех сообщений и создание нового
     path('points/messages/', MessageListCreateAPIView.as_view(), name='message-list-create'),
     
-    # Детали, обновление, удаление сообщения
-    path('points/messages/<int:pk>/', MessageDetailAPIView.as_view(), name='message-detail'),
+    # path('points/messages/<int:pk>/', MessageDetailAPIView.as_view(), name='message-detail'),
     
     # Поиск сообщений в радиусе
     path('points/messages/search/', MessageSearchAPIView.as_view(), name='message-search'),

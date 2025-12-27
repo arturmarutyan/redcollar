@@ -23,6 +23,22 @@ class PointSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'location']
     
+    def validate_latitude(self, value):
+        """Валидация широты"""
+        if isinstance(value, str) and value.lower() == 'nan':
+            raise serializers.ValidationError("Latitude cannot be NaN")
+        if not (-90 <= value <= 90):
+            raise serializers.ValidationError("Latitude must be between -90 and 90")
+        return value
+    
+    def validate_longitude(self, value):
+        """Валидация долготы"""
+        if isinstance(value, str) and value.lower() == 'nan':
+            raise serializers.ValidationError("Longitude cannot be NaN")
+        if not (-180 <= value <= 180):
+            raise serializers.ValidationError("Longitude must be between -180 and 180")
+        return value
+
     def create(self, validated_data):
         # Извлекаем координаты
         latitude = validated_data.pop('latitude')

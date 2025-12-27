@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'django_filters',
 
     'points.apps.PointsConfig',
+    'accounts.apps.AccountsConfig',
 ]
 
 REST_FRAMEWORK = {
